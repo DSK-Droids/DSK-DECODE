@@ -19,13 +19,16 @@ public class Intake implements Subsystem {
     private Intake() {
     }
 
-    public boolean isStopped;
+    public static boolean isStopped = false;
     private final MotorEx motor = new MotorEx("intake").brakeMode();
 
 
-    public final Command off= new InstantCommand(() -> { isStopped = true;});
+    public final Command off = new InstantCommand(() -> isStopped = true);
 
-    public final Command on = new InstantCommand(()-> { isStopped = false;});
+
+    public final Command spin = new InstantCommand(() -> isStopped = false);
+
+
     @Override
     public void periodic() {
         if (!isStopped) {
