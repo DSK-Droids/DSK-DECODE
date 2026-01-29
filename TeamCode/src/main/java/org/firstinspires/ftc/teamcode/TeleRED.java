@@ -8,27 +8,22 @@ import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.HeadingInterpolator;
 import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathChain;
-import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 import java.util.function.Supplier;
 
-import dev.nextftc.core.commands.delays.Delay;
 import dev.nextftc.core.commands.groups.ParallelGroup;
-import dev.nextftc.core.commands.groups.SequentialGroup;
-import dev.nextftc.core.commands.utility.InstantCommand;
 import dev.nextftc.core.components.BindingsComponent;
 import dev.nextftc.core.components.SubsystemComponent;
-import dev.nextftc.extensions.pedro.PedroComponent;
 import dev.nextftc.ftc.Gamepads;
 import dev.nextftc.ftc.NextFTCOpMode;
 import dev.nextftc.ftc.components.BulkReadComponent;
 
 @Configurable
 @TeleOp
-public class ExampleTeleOp extends NextFTCOpMode {
+public class TeleRED extends NextFTCOpMode {
     private Follower follower;
     public static Pose startingPose; //See ExampleAuto to understand how to use this
     private boolean automatedDrive;
@@ -37,13 +32,14 @@ public class ExampleTeleOp extends NextFTCOpMode {
     private boolean slowMode = false;
     private double slowModeMultiplier = 0.5;
 
-    public ExampleTeleOp() {
+    public TeleRED() {
         addComponents(
                 new SubsystemComponent(
                         Flywheels.INSTANCE,
                         newIntake.INSTANCE,
                         TurretSubsystem.INSTANCE,
-                        newTransfer.INSTANCE
+                        newTransfer.INSTANCE,
+                        blocker.INSTANCE
                 ),
                 BulkReadComponent.INSTANCE,
                 BindingsComponent.INSTANCE
@@ -65,30 +61,26 @@ public class ExampleTeleOp extends NextFTCOpMode {
 
         // --- DEFINE BINDINGS ONCE HERE ---
 
-        Gamepads.gamepad2().a().whenBecomesTrue(
-                new SequentialGroup(
-                        // Pulse 1
-                        new ParallelGroup(newIntake.INSTANCE.spin(), newTransfer.INSTANCE.spin())
-                )
-                // Do NOT put .schedule() here
-        );
+        Gamepads.gamepad1().leftTrigger()
+                .greaterThan(0.3) // This creates a "Button" that is true when trigger is > 30%
+                .whenTrue(newIntake.INSTANCE.spin())
+                .whenFalse(newIntake.INSTANCE.stop());
 
 
-        Gamepads.gamepad2().b().whenBecomesTrue(new SequentialGroup(
-                        // Pulse 1
-                        new ParallelGroup(newIntake.INSTANCE.stop(), newTransfer.INSTANCE.stop())
-                )
-                // Do NOT put .schedule() here
-        );
-
-        // Flywheels
-        Gamepads.gamepad2().leftBumper().whenBecomesTrue(Flywheels.INSTANCE.spin());
-        Gamepads.gamepad2().rightBumper().whenBecomesTrue(Flywheels.INSTANCE.stop());
+        Gamepads.gamepad1().x().whenBecomesTrue(Flywheels.INSTANCE.spin());
+        Gamepads.gamepad1().y().whenBecomesTrue(Flywheels.INSTANCE.stop());
 
         // Transfer
-        Gamepads.gamepad2().x().whenBecomesTrue(newTransfer.INSTANCE.spin());
-        Gamepads.gamepad2().y().whenBecomesTrue(newTransfer.INSTANCE.stop());
+        Gamepads.gamepad1().rightTrigger()
+                .greaterThan(0.3)
+                .whenTrue(new ParallelGroup(newIntake.INSTANCE.spin(),newTransfer.INSTANCE.spin()))
+                .whenFalse(new ParallelGroup( newTransfer.INSTANCE.stop()));
+
+        Gamepads.gamepad1().rightBumper().whenBecomesTrue(blocker.INSTANCE.block);
+        Gamepads.gamepad1().leftBumper().whenBecomesTrue(blocker.INSTANCE.unblock);
+
     }
+
 
 
 
