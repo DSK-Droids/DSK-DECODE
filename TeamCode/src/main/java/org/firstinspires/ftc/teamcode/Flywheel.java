@@ -32,7 +32,7 @@ public class Flywheel implements Subsystem {
 
     public final Command on = new SequentialGroup(
             new InstantCommand(()-> { isStopped = false;}),
-            new RunToVelocity(controller, 1200)
+            new RunToVelocity(controller, 1800)
     );
     @Override
     public void periodic() {

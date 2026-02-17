@@ -22,8 +22,8 @@ import dev.nextftc.ftc.NextFTCOpMode;
 import dev.nextftc.ftc.components.BulkReadComponent;
 
 @Configurable
-@TeleOp(name = "TTeleRED", group = "Examples")
-public class TeleRED extends NextFTCOpMode {
+@TeleOp(name = "TeleBLUE", group = "Examples")
+public class TeleBLUE extends NextFTCOpMode {
     private Follower follower;
     public static Pose startingPose; //See ExampleAuto to understand how to use this
     private boolean automatedDrive;
@@ -32,14 +32,15 @@ public class TeleRED extends NextFTCOpMode {
     private boolean slowMode = false;
     private double slowModeMultiplier = 0.5;
 
-    public TeleRED() {
+    public TeleBLUE() {
         addComponents(
                 new SubsystemComponent(
                         Flywheels.INSTANCE,
                         newIntake.INSTANCE,
                         TurretSubsystem.INSTANCE,
                         newTransfer.INSTANCE,
-                        blocker.INSTANCE
+                        blocker.INSTANCE,
+                        blocker2.INSTANCE
                 ),
                 BulkReadComponent.INSTANCE,
                 BindingsComponent.INSTANCE
@@ -50,13 +51,13 @@ public class TeleRED extends NextFTCOpMode {
     @Override
     public void onInit() {
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(45,98, Math.toRadians(225)));
+        follower.setStartingPose(new Pose(45,98, Math.toRadians(135)));
         follower.update();
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
 
         pathChain = () -> follower.pathBuilder()
                 .addPath(new Path(new BezierLine(follower::getPose, new Pose(45, 98))))
-                .setHeadingInterpolation(HeadingInterpolator.linearFromPoint(follower::getHeading, Math.toRadians(45), 0.8))
+                .setHeadingInterpolation(HeadingInterpolator.linearFromPoint(follower::getHeading, Math.toRadians(135), 0.8))
                 .build();
 
         // --- DEFINE BINDINGS ONCE HERE ---
@@ -76,8 +77,8 @@ public class TeleRED extends NextFTCOpMode {
                 .whenTrue(new ParallelGroup(newIntake.INSTANCE.spin(),newTransfer.INSTANCE.spin()))
                 .whenFalse(new ParallelGroup( newTransfer.INSTANCE.stop()));
 
-        Gamepads.gamepad1().rightBumper().whenBecomesTrue(blocker.INSTANCE.block);
-        Gamepads.gamepad1().leftBumper().whenBecomesTrue(blocker.INSTANCE.unblock);
+        Gamepads.gamepad1().rightBumper().whenBecomesTrue(new ParallelGroup(blocker.INSTANCE.block, blocker2.INSTANCE.block));
+        Gamepads.gamepad1().leftBumper().whenBecomesTrue(new ParallelGroup(blocker.INSTANCE.unblock, blocker2.INSTANCE.block));
 
     }
 
@@ -102,39 +103,37 @@ public class TeleRED extends NextFTCOpMode {
 
 
         if (!automatedDrive) {
-                //Make the last parameter false for field-centric
-                //In case the drivers want to use a "slowMode" you can scale the vectors
+            //Make the last parameter false for field-centric
+            //In case the drivers want to use a "slowMode" you can scale the vectors
 
-                //This is the normal version to use in the TeleOp
-                if (!slowMode) follower.setTeleOpDrive(
-                        -gamepad1.left_stick_y,
-                        -gamepad1.left_stick_x,
-                        -gamepad1.right_stick_x,
-                        true // Robot Centric
-                );
+            //This is the normal version to use in the TeleOp
+            if (!slowMode) follower.setTeleOpDrive(
+                    -gamepad1.left_stick_y,
+                    -gamepad1.left_stick_x,
+                    -gamepad1.right_stick_x,
+                    false // Robot Centric
+            );
 
-                    //This is how it looks with slowMode on
-                else follower.setTeleOpDrive(
-                        -gamepad1.left_stick_y * slowModeMultiplier,
-                        -gamepad1.left_stick_x * slowModeMultiplier,
-                        -gamepad1.right_stick_x * slowModeMultiplier,
-                        true // Robot Centric
-                );
-            }
+                //This is how it looks with slowMode on
+            else follower.setTeleOpDrive(
+                    -gamepad1.left_stick_y * slowModeMultiplier,
+                    -gamepad1.left_stick_x * slowModeMultiplier,
+                    -gamepad1.right_stick_x * slowModeMultiplier,
+                    true // Robot Centric
+            );
+        }
 
-            //Automated PathFollowing
-            if (gamepad1.aWasPressed()) {
-                follower.followPath(pathChain.get());
-                automatedDrive = true;
-            }
+        //Automated PathFollowing
+        if (gamepad1.aWasPressed()) {
+            follower.followPath(pathChain.get());
+            automatedDrive = true;
+        }
 
-            //Stop automated following if the follower is done
-            if (automatedDrive && (gamepad1.bWasPressed() || !follower.isBusy())) {
-                follower.startTeleopDrive();
-                automatedDrive = false;
-            }
-
-
+        //Stop automated following if the follower is done
+        if (automatedDrive && (gamepad1.bWasPressed() || !follower.isBusy())) {
+            follower.startTeleopDrive();
+            automatedDrive = false;
+        }
 
 
 
@@ -142,10 +141,12 @@ public class TeleRED extends NextFTCOpMode {
 
 
 
-            //Optional way to change slow mode strength
-            if (gamepad2.yWasPressed()) {
-                slowModeMultiplier -= 0.25;
-            }
+
+
+        //Optional way to change slow mode strength
+        if (gamepad2.yWasPressed()) {
+            slowModeMultiplier -= 0.25;
+        }
 
       /* Gamepads.gamepad1().rightBumper()
                 .whenBecomesTrue(Flywheel.INSTANCE.on);
@@ -179,13 +180,9 @@ public class TeleRED extends NextFTCOpMode {
 //                .whenBecomesTrue(blocker.INSTANCE.block);*/
 
 
-            telemetryM.debug("position", follower.getPose());
-            telemetryM.debug("velocity", follower.getVelocity());
-            telemetryM.debug("turret velo", Flywheels.targetVelocity);
-            telemetry.addData("intake Velo", newIntake.INSTANCE.intakeRpm);
-            telemetry.addData("turret velo", Flywheels.INSTANCE.velocity);
-            telemetry.update();
-
+        telemetryM.debug("position", follower.getPose());
+        telemetryM.debug("velocity", follower.getVelocity());
+        telemetryM.debug("automatedDrive", automatedDrive);
 
 
 

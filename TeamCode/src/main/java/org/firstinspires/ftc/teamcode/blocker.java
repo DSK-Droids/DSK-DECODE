@@ -11,6 +11,7 @@ public class blocker implements Subsystem {
 
     private ServoEx servo = new ServoEx("blocker");
 
+
     public Command block = new SetPosition(servo, 0).requires(this);
-    public Command unblock = new SetPosition(servo, 0.4).requires(this);
+    public Command unblock = new SetPosition(servo, 1).requires(this);
 }
