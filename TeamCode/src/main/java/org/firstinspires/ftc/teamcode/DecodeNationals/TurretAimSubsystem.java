@@ -33,18 +33,34 @@ public class TurretAimSubsystem implements Subsystem {
     public static double SERVO_CENTER = 0.5;
     public static double SERVO_RANGE_DEGREES = 320.0; // Total range of servo in degrees
 
+    // Gear ratio: 1:1.3 - turret moves 1.3x for every 1x servo movement
+    public static double GEAR_RATIO = 1.3;
+    // Effective turret range in degrees (servo range * gear ratio)
+    public static double TURRET_RANGE_DEGREES = SERVO_RANGE_DEGREES * GEAR_RATIO; // ~416 degrees
+
     // Target position on the field (the goal/basket location)
     // These are in the same coordinate system as Pedro Pathing
-    public static double TARGET_X = 8.0;  // Adjust to your target X coordinate
-    public static double TARGET_Y = 126.0; // Adjust to your target Y coordinate
+    public static double TARGET_X = 130;  // Adjust to your target X coordinate
+    public static double TARGET_Y = 130; // Adjust to your target Y coordinate
 
     // Turret offset from robot center (if turret is not at robot center)
     public static double TURRET_OFFSET_X = 0.0; // inches forward from robot center
     public static double TURRET_OFFSET_Y = 0.0; // inches left from robot center
 
     // Control parameters
-    public static double DEADBAND_DEGREES = 2.0; // Don't move if within this range
-    // Removed MAX_SERVO_SPEED - servos will now respond instantly
+    public static double DEADBAND_DEGREES = 1; // Don't move if within this range
+
+    // Speed limiting - applied to ALL movements to prevent gear slipping
+    // Maximum servo position change per update cycle (0.0 to 1.0 scale)
+    public static double MAX_SERVO_SPEED = 0.007; // Slow, gear-safe speed for all moves
+
+    // Maximum turret rotation: 180 degrees total (90 each direction from center)
+    public static double MAX_TURRET_ANGLE = 90.0; // degrees from center in each direction
+
+    // Servo position limits derived from the 180° turret limit
+    // 90 degrees of turret rotation = 90 / (320 * 1.3) ≈ 0.216 servo units from center
+    public static double SERVO_MIN = SERVO_CENTER - (MAX_TURRET_ANGLE / (SERVO_RANGE_DEGREES * GEAR_RATIO));
+    public static double SERVO_MAX = SERVO_CENTER + (MAX_TURRET_ANGLE / (SERVO_RANGE_DEGREES * GEAR_RATIO));
 
     /* ---------------- State ---------------- */
 
@@ -89,7 +105,9 @@ public class TurretAimSubsystem implements Subsystem {
     }
 
     /**
-     * Core aiming logic - calculates angle to target and moves servos
+     * Core aiming logic - calculates angle to target and moves servos.
+     * Uses shortest-path error relative to the current turret angle so that
+     * the turret always returns the correct way after hitting a limit.
      */
     private void updateTurretAiming() {
         Pose robotPose = follower.getPose();
@@ -110,24 +128,34 @@ public class TurretAimSubsystem implements Subsystem {
         debugDistanceToTarget = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
         // Convert to turret-relative angle (how much the turret needs to rotate from robot heading)
-        // The turret angle is relative to the robot's heading
-        targetAngle = angleToTarget - robotHeading;
+        // This is the raw desired angle in radians, NOT yet normalized
+        double desiredAngleRad = angleToTarget - robotHeading;
 
-        // Normalize to -PI to PI
-        targetAngle = normalizeAngle(targetAngle);
-
-        // Convert to degrees for easier tuning
-        double targetAngleDegrees = Math.toDegrees(targetAngle);
-
-        // Update debug values
-        debugTargetAngle = targetAngleDegrees;
+        // Update debug
         debugRobotHeading = Math.toDegrees(robotHeading);
 
-        // Calculate current turret angle from servo position
-        currentTurretAngle = (currentServoPosition - SERVO_CENTER) * SERVO_RANGE_DEGREES;
+        // Calculate current turret angle from servo position (accounting for gear ratio)
+        currentTurretAngle = (currentServoPosition - SERVO_CENTER) * SERVO_RANGE_DEGREES * GEAR_RATIO;
         debugTurretAngle = currentTurretAngle;
 
-        // Calculate error
+        // Compute the shortest-path error:
+        // Find the difference between desired angle and current turret angle,
+        // then normalize THAT to ±180° so the turret always takes the shortest route.
+        double currentTurretAngleRad = Math.toRadians(currentTurretAngle);
+        double rawError = desiredAngleRad - currentTurretAngleRad;
+        rawError = normalizeAngle(rawError); // shortest path ±PI
+
+        angleError = Math.toDegrees(rawError);
+
+        // The actual target angle is: where the turret is now + shortest error
+        double targetAngleDegrees = currentTurretAngle + angleError;
+
+        debugTargetAngle = targetAngleDegrees;
+
+        // Clamp target angle to what the turret can physically reach
+        targetAngleDegrees = Math.max(-MAX_TURRET_ANGLE, Math.min(MAX_TURRET_ANGLE, targetAngleDegrees));
+
+        // Recalculate error after clamping
         angleError = targetAngleDegrees - currentTurretAngle;
 
         // Check if within deadband
@@ -135,15 +163,25 @@ public class TurretAimSubsystem implements Subsystem {
             return; // Already aimed, don't move
         }
 
-        // Calculate new servo position - DIRECT, no smoothing for fastest response
-        // Map the target angle to servo position
-        double targetServoPosition = SERVO_CENTER + (targetAngleDegrees / SERVO_RANGE_DEGREES);
+        // Calculate desired servo position (accounting for gear ratio)
+        double targetServoPosition = SERVO_CENTER + (targetAngleDegrees / (SERVO_RANGE_DEGREES * GEAR_RATIO));
 
-        // Clamp to valid servo range
-        targetServoPosition = Math.max(0.0, Math.min(1.0, targetServoPosition));
+        // Clamp to safe servo range
+        targetServoPosition = Math.max(SERVO_MIN, Math.min(SERVO_MAX, targetServoPosition));
 
-        // Set position directly - let the servos move as fast as they can
-        currentServoPosition = targetServoPosition;
+        // Always rate-limit servo movement to protect gears
+        double servoMovement = targetServoPosition - currentServoPosition;
+
+        if (Math.abs(servoMovement) > MAX_SERVO_SPEED) {
+            // Limit step size
+            currentServoPosition += Math.signum(servoMovement) * MAX_SERVO_SPEED;
+        } else {
+            // Close enough - snap to target
+            currentServoPosition = targetServoPosition;
+        }
+
+        // Clamp final position
+        currentServoPosition = Math.max(SERVO_MIN, Math.min(SERVO_MAX, currentServoPosition));
 
         // Set servo positions
         setServoPositions(currentServoPosition);
@@ -194,6 +232,24 @@ public class TurretAimSubsystem implements Subsystem {
         }).requires(this);
     }
 
+    /* ---------------- Direct Methods (for use in lambdas) ---------------- */
+
+    /**
+     * Enable or disable aiming directly (not a Command)
+     */
+    public void setAimingEnabled(boolean enabled) {
+        aimingEnabled = enabled;
+    }
+
+    /**
+     * Center turret directly (not a Command) - for use in lambdas
+     */
+    public void centerTurretDirect() {
+        aimingEnabled = false;
+        currentServoPosition = SERVO_CENTER;
+        setServoPositions(SERVO_CENTER);
+    }
+
     /**
      * Manual turret control - adds to current position
      * @param delta Amount to change servo position (-1 to 1 scale, will be scaled down)
@@ -201,8 +257,8 @@ public class TurretAimSubsystem implements Subsystem {
     public void manualAdjust(double delta) {
         if (aimingEnabled) return; // Don't allow manual when auto-aiming
 
-        currentServoPosition += delta * 0.01; // Scale down for fine control
-        currentServoPosition = Math.max(0.0, Math.min(1.0, currentServoPosition));
+        currentServoPosition += delta * 0.005; // Scale down for fine control
+        currentServoPosition = Math.max(SERVO_MIN, Math.min(SERVO_MAX, currentServoPosition));
         setServoPositions(currentServoPosition);
     }
 
@@ -214,6 +270,13 @@ public class TurretAimSubsystem implements Subsystem {
 
     public double getAngleError() {
         return angleError;
+    }
+
+    /**
+     * Returns true if the turret is aimed within the deadband of the target
+     */
+    public boolean isAimed() {
+        return aimingEnabled && Math.abs(angleError) < DEADBAND_DEGREES;
     }
 
     public double getCurrentServoPosition() {

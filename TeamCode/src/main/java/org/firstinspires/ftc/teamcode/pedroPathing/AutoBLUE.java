@@ -1,5 +1,6 @@
+/*
 package org.firstinspires.ftc.teamcode.pedroPathing; // make sure this aligns with class location
-
+ /*
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
@@ -64,14 +65,14 @@ public class AutoBLUE extends NextFTCOpMode {
     private PathChain grabPickup1, scorePickup1, grabPickup2, scorePickup2, pickPrep1, pickPrep2, grabPickup3, scorePickup3,fromPickup2;
 
     public void buildPaths() {
-        /* This is our scorePreload path. We are using a BezierLine, which is a straight line. */
+        /* This is our scorePreload path. We are using a BezierLine, which is a straight line.
         scorePreload = new Path(new BezierLine(startPose, scorePose));
         scorePreload.setLinearHeadingInterpolation(startPose.getHeading(), scorePose.getHeading());
 
     /* Here is an example for Constant Interpolation
     scorePreload.setConstantInterpolation(startPose.getHeading()); */
 
-        /* This is our grabPickup1 PathChain. We are using a single path with a BezierLine, which is a straight line. */
+        /* This is our grabPickup1 PathChain. We are using a single path with a BezierLine, which is a straight line.
         pickPrep1 = follower.pathBuilder()
                 .addPath(new BezierLine(scorePose, pickupPrep1))
                 .setLinearHeadingInterpolation(scorePose.getHeading(), pickupPrep1.getHeading())
@@ -82,7 +83,7 @@ public class AutoBLUE extends NextFTCOpMode {
                 .setLinearHeadingInterpolation(pickupPrep1.getHeading(), pickup1Pose.getHeading())
                 .build();
 
-        /* This is our scorePickup1 PathChain. We are using a single path with a BezierLine, which is a straight line. */
+        /* This is our scorePickup1 PathChain. We are using a single path with a BezierLine, which is a straight line.
         scorePickup1 = follower.pathBuilder()
                 .addPath(new BezierLine(pickup1Pose, scorePose))
                 .setLinearHeadingInterpolation(pickup1Pose.getHeading(), scorePose.getHeading())
@@ -93,7 +94,7 @@ public class AutoBLUE extends NextFTCOpMode {
                 .setLinearHeadingInterpolation(scorePose.getHeading(), pickupPrep2.getHeading())
                 .build();
 
-        /* This is our grabPickup2 PathChain. We are using a single path with a BezierLine, which is a straight line. */
+        /* This is our grabPickup2 PathChain. We are using a single path with a BezierLine, which is a straight line.
         grabPickup2 = follower.pathBuilder()
                 .addPath(new BezierLine(pickupPrep2, pickup2Pose))
                 .setLinearHeadingInterpolation(pickupPrep2.getHeading(), pickup2Pose.getHeading())
@@ -101,7 +102,7 @@ public class AutoBLUE extends NextFTCOpMode {
 
 
 
-        /* This is our scorePickup2 PathChain. We are using a single path with a BezierLine, which is a straight line. */
+        /* This is our scorePickup2 PathChain. We are using a single path with a BezierLine, which is a straight line.
         scorePickup2 = follower.pathBuilder()
                 .addPath(new BezierCurve(pickup2Pose, scorePose, controlPoint))
                 .setLinearHeadingInterpolation(pickup2Pose.getHeading(), scorePose.getHeading())
@@ -274,7 +275,7 @@ public class AutoBLUE extends NextFTCOpMode {
 
     /**
      * These change the states of the paths and actions. It will also reset the timers of the individual switches
-     **/
+
     public void setPathState(int pState) {
         pathState = pState;
         pathTimer.resetTimer();
@@ -282,7 +283,7 @@ public class AutoBLUE extends NextFTCOpMode {
 
     /**
      * This is the main loop of the OpMode, it will run repeatedly after clicking "Play".
-     **/
+
     @Override
     public void onUpdate() {
 
@@ -300,7 +301,7 @@ public class AutoBLUE extends NextFTCOpMode {
 
     /**
      * This method is called once at the init of the OpMode.
-     **/
+
     @Override
     public void onInit() {
         pathTimer = new Timer();
@@ -316,7 +317,7 @@ public class AutoBLUE extends NextFTCOpMode {
 
     /**
      * This method is called continuously after Init while waiting for "play".
-     **/
+
     @Override
     public void onWaitForStart() {
     }
@@ -324,7 +325,7 @@ public class AutoBLUE extends NextFTCOpMode {
     /**
      * This method is called once at the start of the OpMode.
      * It runs all the setup actions, including building paths and starting the path system
-     **/
+
     @Override
     public void onStartButtonPressed() {
         opmodeTimer.resetTimer();
@@ -333,8 +334,10 @@ public class AutoBLUE extends NextFTCOpMode {
 
     /**
      * We do not use this because everything should automatically disable
-     **/
+
     @Override
     public void onStop() {
     }
 }
+
+*/
